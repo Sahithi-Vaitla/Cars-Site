@@ -3,6 +3,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './CarSubmissionPage.css';
+import { addDoc, collection} from 'firebase/firestore';
+import {getDownloadURL, ref, uploadBytes} from 'firebase/storage';
+import { getFirestore, storage } from '../firebase/firebaseConfig'; // Adjust the path accordingly
+import {app} from '../firebase/firebaseConfig';
+
+
+const db = getFirestore();
 
 const CarSubmissionForm = () => {
   const navigate = useNavigate();
@@ -10,11 +17,11 @@ const CarSubmissionForm = () => {
     brand: '',
     model: '',
     price: '',
-    FuelType: '',
+    fuelType: '',
     SeatingCapacity:'',
     Year:'',
     location: '',
-    imageUrl: '',
+    imageFile: null,
   });
 
   const [errors, setErrors] = useState({});
@@ -29,6 +36,14 @@ const CarSubmissionForm = () => {
     setErrors((prevErrors) => ({
       ...prevErrors,
       [name]: '',
+    }));
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    setCarDetails((prevDetails) => ({
+      ...prevDetails,
+      imageFile: file,
     }));
   };
 
@@ -52,8 +67,8 @@ const CarSubmissionForm = () => {
       valid = false;
     }
 
-    if (!carDetails.FuelType.trim()) {
-      newErrors.FuelType = 'FuelType is required';
+    if (!carDetails.fuelType.trim()) {
+      newErrors.fuelType = 'FuelType is required';
       valid = false;
     }
 
@@ -72,8 +87,8 @@ const CarSubmissionForm = () => {
       valid = false;
     }
 
-    if (!carDetails.imageUrl.trim()) {
-      newErrors.imageUrl = 'Image URL is required';
+    if (!carDetails.imageFile) {
+      newErrors.imageFile = 'Image is required';
       valid = false;
     }
 
@@ -81,18 +96,48 @@ const CarSubmissionForm = () => {
     return valid;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async(e) => {
     e.preventDefault();
 
     if (validateForm()) {
       // Form is valid, you can proceed with submission
-      console.log('Submitted data:', carDetails);
+      try{
+        // Upload the image to storage
+        const imageRef = ref(storage, `car_images/${carDetails.imageFile.name}`);
+        // await imageRef.put(carDetails.imageFile);
+        await uploadBytes(imageRef, carDetails.imageFile);
+
+        // Get the URL of the uploaded image
+        const imageUrl = await getDownloadURL(imageRef);
+
+        // Add other details to the car object
+        const carObject = {
+          brand: carDetails.brand,
+          model: carDetails.model,
+          price: carDetails.price,
+          fuelType: carDetails.fuelType,
+          seatingCapacity: carDetails.SeatingCapacity,
+          year: carDetails.Year,
+          location: carDetails.location,
+          imageUrl: imageUrl, // Use the image URL here
+        };
+
+        const carsCollection = collection(db,'cars');
+        // await addDoc(carsCollection, carObject);
+        const docRef = await addDoc(carsCollection, carObject);
+      console.log('Submitted details successfully:', carObject);
+
+      } catch (error){
+        console.error('Error storing car details:', error);
+      }
       // You can redirect the user or perform other actions here
+      navigate('/');
+
     } else {
       console.log('Form has validation errors. Please fix them.');
     }
 
-    navigate('/');
+    // navigate('/');
   };
 
   return (
@@ -149,8 +194,8 @@ const CarSubmissionForm = () => {
           <label className="label">FuelType:</label>
             <input
               type="text"
-              name="FuelType"
-              value={carDetails.FuelType}
+              name="fuelType"
+              value={carDetails.fuelType}
               onChange={handleInputChange}
               required
             />
@@ -201,18 +246,18 @@ const CarSubmissionForm = () => {
           <span style={{ color: 'red' }}>{errors.location}</span>
         </div>
 
-        {/* Image URL Input */}
+        {/* Image Input */}
         <div className="form-group">
-          <label className="label">Image URL:</label>
+          <label className="label">Image:</label>
             <input
-              type="text"
-              name="imageUrl"
-              value={carDetails.imageUrl}
-              onChange={handleInputChange}
+              type="file"
+              name="image"
+              accept = "image/*"
+              onChange={handleImageChange}
               required
             />
           {/* </label> */}
-          <span style={{ color: 'red' }}>{errors.imageUrl}</span>
+          <span style={{ color: 'red' }}>{errors.imageFile}</span>
         </div>
 
         <button type="submit" className="button">Submit</button>

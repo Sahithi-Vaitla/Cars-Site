@@ -1,12 +1,18 @@
 // pages/HomePage.js
 
-import React, { useState } from 'react';
+import React, {  useEffect, useState } from 'react';
 import Header from '../components/Header';
 import Filters from '../components/Filters'; // Import the Filters component
 import CarList from '../components/CarList';
 import topImage from '../images/top-image.png';
 import SellButton from '../components/SellButton';
 import { useLocation } from 'react-router-dom';
+import { collection, getDocs} from 'firebase/firestore';
+import { app} from '../firebase/firebaseConfig';
+import { getFirestore } from 'firebase/firestore';
+
+const db = getFirestore();
+// import { db } from '../firebase'; // Import the Firebase instance
 
 const HomePage = () => {
   // State for filters (you can modify as needed)
@@ -18,6 +24,11 @@ const HomePage = () => {
   const [selectedTransmission, setSelectedTransmission] = useState('');
   const [selectedFuelType, setSelectedFuelType] = useState('');
   const [selectedPassengerCapacity, setSelectedPassengerCapacity] = useState('');
+
+  const [userSubmittedCars, setUserSubmittedCars] = useState([]);
+  const [hardcodedCars, setHardcodedCars] = useState([]);
+
+// const [carData, setCarData] = useState([]);
 
   // Function to handle filter changes
   const handleFilterChange = (filterName, value) => {
@@ -51,6 +62,28 @@ const HomePage = () => {
         break;
     }
   };
+
+  // Fetch car data from Firebase
+  const fetchUserSubmittedCars = async () => {
+    try {
+    const userCarsCollection = collection(db, 'cars'); // 'cars' is the collection name in your Firestore
+    const querySnapshot = await getDocs(userCarsCollection);
+    // const data = querySnapshot.docs.map((doc) => doc.data());
+
+    const newData = querySnapshot.docs.map((doc) => ({
+      id: doc.id, 
+      ...doc.data(),
+      }));
+      
+    setUserSubmittedCars(newData);
+  } catch (error) {
+    console.error('Error fetching user-submitted cars:', error.message);
+  }
+};
+
+  useEffect(() => {
+    fetchUserSubmittedCars();
+  }, []);
 
   return (
     <div>
@@ -86,10 +119,14 @@ const HomePage = () => {
         selectedTransmission={selectedTransmission}
         selectedFuelType={selectedFuelType}
         selectedPassengerCapacity={selectedPassengerCapacity}
+        userSubmittedCars = {userSubmittedCars}
+        hardcodedCars={hardcodedCars}
       />
       <SellButton/>
       {/* You can add any other content specific to the home page */}
     </div>
+
+    
     </div>
   );
 };

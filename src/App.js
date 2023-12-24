@@ -1,6 +1,6 @@
 // App.js
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import CarList from './components/CarList';
 import SellButton from './components/SellButton';
@@ -9,6 +9,23 @@ import CarSubmissionForm from './pages/CarSubmissionForm';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import './App.css';
 import topImage from './images/top-image.png';
+
+import {initializeApp} from 'firebase/app';
+import {getAnalytics} from 'firebase/analytics';
+import {getFirestore, collection, addDoc, getDocs} from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB8GRujYv9KKCRMm3tZwfvqQ-drzslYr60",
+  authDomain: "cars-site-db.firebaseapp.com",
+  projectId: "cars-site-db",
+  storageBucket: "cars-site-db.appspot.com",
+  messagingSenderId: "567065209647",
+  appId: "1:567065209647:web:3989f4a79911d6ed664fda",
+  measurementId: "G-3HQWDEXF93"
+};
+
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 const App = () => {
   // const location = useLocation();
@@ -80,6 +97,47 @@ const App = () => {
 
   // const location = useLocation();
   // const isCarSubmissionPage = location.pathname === '/sell';
+
+  const fetchCarsFromFirestore = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(getFirestore(app), 'cars'));
+      const carsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCars(carsData);
+    } catch (error) {
+      console.error('Error fetching car data from Firestore:', error.message);
+    }
+  };
+
+  const handleSubmit = async (carDetails) => {
+    try {
+      const carsCollection = collection(getFirestore(app), 'cars');
+      await addDoc(carsCollection, carDetails);
+      console.log('Car details submitted successfully:', carDetails);
+
+      // Fetch the updated cars list from Firestore
+
+      await fetchCarsFromFirestore();
+      // const querySnapshot = await getDocs(collection(getFirestore(app), 'cars'));
+      // const updatedCars = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Update the cars state to reflect the changes on the homepage
+      // setCars(updatedCars);
+    } catch (error) {
+      console.error('Error submitting car details:', error);
+    }
+  };
+
+  useEffect(() => {
+    // Fetch initial cars list from Firestore
+    // const fetchCars = async () => {
+    //   const querySnapshot = await getDocs(collection(getFirestore(app), 'cars'));
+    //   const initialCars = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    //   setCars(initialCars);
+    // };
+
+    fetchCarsFromFirestore();
+  }, []);
+
 
 
   return (
